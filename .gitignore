@@ -1,0 +1,5 @@
+# 构建产物不入库，仅通过 Releases 发布
+*.apk
+*.zip
+build/
+.dart_tool/
