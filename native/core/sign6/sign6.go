@@ -593,6 +593,9 @@ func hashF13(querySm3, bodyMd5, tsBytes []byte, khronos int64) []byte {
 		r2 := rotl(di14, 13) ^ rotl(di14, 15) ^ (di14 >> 10)
 		di[diLen] = di0 + di[i+9] + r1 + r2
 		diLen++
+		// di0 必须每轮前进一格（= 本轮 di1）：上游注释明确警告过，
+		// 写成常量 di[0] 会让第 1 轮之后每一项都错，branch 0 的 hashF13 全错。
+		di0 = di1
 	}
 
 	var init [8]uint32

@@ -142,6 +142,9 @@ abstract class AppRepository {
   bool get supportsSourceManagement => false;
   Future<SourceStatus> sourceStatus(String source) async =>
       SourceStatus.fromJson({'source': source});
+  /// 下发红果上游参数（远程配置）。核心会校验并持久化。
+  Future<void> applyUpstreamConfig(String text);
+
   Future<SourceStatus> startSourceJob(
     String source,
     String operation, {
@@ -467,6 +470,11 @@ class NativeRepository extends AppRepository {
       SourceStatus.fromJson(
         await _call({'action': 'cancelSourceJob', 'source': source}),
       );
+
+  @override
+  Future<void> applyUpstreamConfig(String text) async {
+    await _call({'action': 'applyUpstreamConfig', 'text': text});
+  }
 
   void _authorize(String source, {bool download = false}) {
     if (!SourceSite.isAvailable(source)) {

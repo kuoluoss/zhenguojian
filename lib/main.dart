@@ -18,6 +18,7 @@ import 'local_store.dart';
 import 'profiles_screen.dart';
 import 'media_library.dart';
 import 'package_smoke.dart';
+import 'upstream_config.dart';
 import 'lan_controller.dart';
 import 'vertical_feed_screen.dart';
 
@@ -163,6 +164,8 @@ class _AppBootstrapState extends State<AppBootstrap>
             );
           };
         });
+        // 0.7.18：拉一次红果上游参数的远程配置（失败静默；改参数不用发版）。
+        unawaited(refreshUpstreamConfig(repository));
         // 界面就绪后检查更新（仅 Android；失败静默跳过，不阻塞启动）。
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final target = navigator.currentContext;

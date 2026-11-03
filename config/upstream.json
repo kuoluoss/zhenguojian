@@ -1,0 +1,14 @@
+{
+  "hongguoPlaybackUA": "com.phoenix.read/71532 (Linux; U; Android 9; SM-N9860; Build/PQ3A.190705.10241111;tt-ok/3.12.13.20)",
+  "hongguoVersionCode": "71332",
+  "hongguoVersionName": "7.1.3.32",
+  "hongguoHosts": [
+    "api5-normal-sinfonlineb.fqnovel.com",
+    "api5-normal-hl.fqnovel.com"
+  ],
+  "hongguoPlaybackModes": [
+    "signed-registered",
+    "unsigned-registered",
+    "signed-synthetic"
+  ]
+}

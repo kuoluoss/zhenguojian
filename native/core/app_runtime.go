@@ -105,6 +105,7 @@ type nativeInput struct {
 	Session          string                  `json:"session"`
 	Sequence         int64                   `json:"sequence"`
 	Force            bool                    `json:"force"`
+	Text             string                  `json:"text"`
 }
 
 type nativeCatalogResult struct {
@@ -337,6 +338,7 @@ func nativeDispatch(input nativeInput) (any, error) {
 			}
 			nativeState.engine = engine
 		}
+		loadUpstreamConfig(input.Directory)
 		nativeState.Unlock()
 		return map[string]any{"version": "0.2.16", "standalone": true, "allSources": buildAllSources == "true"}, nil
 	}
@@ -429,6 +431,8 @@ func nativeDispatch(input nativeInput) (any, error) {
 	case "categories":
 		items, err := engine.nativeCategories(ctx, input.Source, input.Force)
 		return map[string]any{"items": items}, err
+	case "applyUpstreamConfig":
+		return true, setUpstreamConfig(engine.downloader.cfg.dataDir, input.Text)
 	case "sourceStatus":
 		return engine.sourceStatus(input.Source), nil
 	case "sourceJob":

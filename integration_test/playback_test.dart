@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:duanju_app/core_bridge.dart';
@@ -30,6 +30,8 @@ class DeviceFixtureRepository extends AppRepository {
     episodes: 3,
   );
 
+  @override
+  Future<void> applyUpstreamConfig(String text) async {}
   @override
   Future<void> initialize() => native.initialize();
   @override

@@ -278,14 +278,39 @@ class _VerticalFeedScreenState extends State<VerticalFeedScreen>
     widget.onReady?.call();
   }
 
+  /// 首页取流失败时，是否已临时借用「已授权但未选中」的站源兜底（0.7.18）。
+  ///
+  /// 目的：红果等单个源抽风时，首页不应整页空白——只要用户还有其他已授权源，
+  /// 就自动改用全部可用源再取一次，保证首页始终有内容。
+  bool _borrowAllSources = false;
+
   /// 当前生效的站源集合。
   List<SourceSite> get _sources {
+    if (_borrowAllSources) {
+      return widget.store.sources
+          .where((source) => widget.store.allowsSource(source.id))
+          .toList();
+    }
     final list = widget.sources.isNotEmpty
         ? widget.sources
         : widget.store.sources;
     return list
         .where((source) => widget.store.allowsSource(source.id))
         .toList();
+  }
+
+  /// 取流失败/为空时尝试借用其他已授权源；返回 true 表示已触发重载。
+  bool _tryBorrowSources() {
+    if (_borrowAllSources || widget.singleDrama != null) return false;
+    final current = _sources.map((source) => source.id).toSet();
+    final all = widget.store.sources
+        .where((source) => widget.store.allowsSource(source.id))
+        .toList();
+    if (all.length <= current.length) return false;
+    _borrowAllSources = true;
+    _error = null;
+    unawaited(_load(force: true));
+    return true;
   }
 
   String _signatureOf(List<SourceSite> sources) =>
@@ -444,10 +469,19 @@ class _VerticalFeedScreenState extends State<VerticalFeedScreen>
         _loadingMore = false;
       });
       _stopSwitchTicker();
-      if (_items.isNotEmpty) _reportReady();
+      if (_items.isNotEmpty) {
+        _reportReady();
+      } else if (!more && _tryBorrowSources()) {
+        // 所选源一条都没返回：先借用其他已授权源兜底，避免首页空白。
+        return;
+      }
     } catch (error) {
       if (_closed || generation != _generation) return;
       _stopSwitchTicker();
+      if (!more && _tryBorrowSources()) {
+        // 所选源全部失败：借用其他已授权源再试一次，不让首页整页空白。
+        return;
+      }
       setState(() {
         _loading = false;
         _loadingMore = false;

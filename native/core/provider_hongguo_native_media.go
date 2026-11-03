@@ -13,35 +13,31 @@ import (
 	"time"
 )
 
-// resolveHongguoAppMedia 取某集的 App 直链（0.7.17 起双路径）。
+// resolveHongguoAppMedia 取某集的 App 直链（0.7.18 起走组合矩阵）。
 //
-// 2026-10-30 起红果把播放接口单独改了规则：`multi_video_model/v1` **拒绝签名请求**，
-// 必须用 platform 注册的匿名身份、且不带任何签名头（见 `provider_hongguo_playback.go`）；
-// 带签名+随机身份会被软拦截成「HTTP 200 + 0 字节」。
-//
-// 因此这里按「无签名 → 六头签名」依次尝试，任一成功即返回；两条都失败才报错。
-// 这样服务端下次再在两种规则间切换时，客户端有机会自愈，不必等新版本。
+// 红果在同一个播放接口上反复横跳（要签名 / 不要签名 / 要签名+注册身份），
+// 只押一条路必然"刚修完又坏"。现在由 `provider_hongguo_playback_matrix.go`
+// 按「上次成功优先」依次尝试「签名开关 × 身份来源 × 主备域名」，
+// 这里只负责短缓存与选流。
 func (downloader *Downloader) resolveHongguoAppMedia(ctx context.Context, videoID string) (providerMedia, error) {
 	if !hongguoNumericID.MatchString(videoID) {
 		return providerMedia{}, errors.New("红果视频 ID 无效")
 	}
-	model, unsignedErr := downloader.hongguoPlaybackModel(ctx, videoID)
-	if unsignedErr == nil {
+	// 同一集 10 分钟内重复打开不再请求上游（减少被判重/风控的机会）。
+	if cached, hit := hongguoMediaCacheGet(videoID); hit {
+		return cached, nil
+	}
+	model, modelErr := downloader.hongguoPlaybackModel(ctx, videoID)
+	if modelErr == nil {
 		if media, err := downloader.hongguoMediaFromModel(ctx, model); err == nil {
+			hongguoMediaCachePut(videoID, media)
 			return media, nil
 		} else {
-			unsignedErr = err
+			modelErr = err
 		}
 	}
-	signedModel, signedErr := downloader.hongguoSignedPlaybackModel(ctx, videoID)
-	if signedErr == nil {
-		if media, err := downloader.hongguoMediaFromModel(ctx, signedModel); err == nil {
-			return media, nil
-		} else {
-			signedErr = err
-		}
-	}
-	return providerMedia{}, fmt.Errorf("红果取流失败：无签名路径(%v)；签名路径(%v)", unsignedErr, signedErr)
+	hongguoMediaCacheDrop(videoID)
+	return providerMedia{}, fmt.Errorf("红果取流失败：%w", modelErr)
 }
 
 // hongguoMediaFromModel 从 video_model 选流；只在必要时跟随 `fallback_api`。

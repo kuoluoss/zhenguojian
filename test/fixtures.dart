@@ -23,6 +23,8 @@ class FixtureRepository extends AppRepository {
     vip: true,
   );
   @override
+  Future<void> applyUpstreamConfig(String text) async {}
+  @override
   Future<void> initialize() async {}
   @override
   Future<CatalogPage> cached(String source, {String category = ''}) async =>

@@ -386,6 +386,10 @@ class _LocalFileRepository extends AppRepository {
   final LocalStore store;
   final LocalMediaItem item;
   final String file;
+
+  @override
+  Future<void> applyUpstreamConfig(String text) async {}
+
   Future<PlaybackPlan> _plan() async {
     if (!store.canDownload || !store.allowsSource(item.drama.source)) {
       throw AppFailure('当前用户无权读取此视频');
