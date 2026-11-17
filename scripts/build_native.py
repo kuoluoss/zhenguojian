@@ -13,7 +13,7 @@ parser.add_argument('--platform', choices=['android', 'windows', 'darwin'], requ
 parser.add_argument('--abi', action='append', choices=['arm64-v8a', 'armeabi-v7a', 'x86_64'])
 add_variant_argument(parser)
 options = parser.parse_args()
-variant = BuildVariant(options.all_sources)
+variant = BuildVariant(options.edition)
 
 environment = os.environ.copy()
 environment.setdefault('GOPROXY', 'https://goproxy.cn,direct')

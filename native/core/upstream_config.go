@@ -26,19 +26,35 @@ type upstreamConfig struct {
 	VersionName  string   `json:"hongguoVersionName"`
 	Hosts        []string `json:"hongguoHosts"`
 	PlaybackModes []string `json:"hongguoPlaybackModes"`
+	// DeviceProfile 覆盖播放请求里的设备画像字段（os_api / os_version /
+	// device_type / device_brand / resolution / dpi 等）。
+	// 用途：设备画像与注册身份不一致时，播放接口会返回「200 + 0 字节」，
+	// 这里允许远程校准而不必发版。
+	DeviceProfile map[string]string `json:"hongguoDeviceProfile,omitempty"`
+}
+
+// hongguoDeviceProfileKeys 允许被远程覆盖的设备画像字段白名单。
+var hongguoDeviceProfileKeys = map[string]bool{
+	"os_api": true, "os_version": true, "device_type": true, "device_brand": true,
+	"resolution": true, "dpi": true, "host_abi": true, "dragon_device_type": true,
+	"manifest_version_code": true, "update_version_code": true, "pv_player": true,
+	"compliance_status": true, "need_personal_recommend": true, "player_so_load": true,
+	"is_android_pad_screen": true, "channel": true, "ac": true, "language": true,
 }
 
 func defaultUpstreamConfig() upstreamConfig {
 	return upstreamConfig{
 		PlaybackUA:    hongguoPlaybackUADefault,
-		VersionCode:   "71332",
-		VersionName:   "7.1.3.32",
+		VersionCode:   "74332",
+		VersionName:   "7.4.3.32",
 		Hosts:         []string{"api5-normal-sinfonlineb.fqnovel.com", "api5-normal-hl.fqnovel.com"},
 		PlaybackModes: []string{hongguoPlaybackModeSignedRegistered, hongguoPlaybackModeUnsignedRegistered, hongguoPlaybackModeSignedSynthetic},
 	}
 }
 
-const hongguoPlaybackUADefault = "com.phoenix.read/71532 (Linux; U; Android 9; SM-N9860; Build/PQ3A.190705.10241111;tt-ok/3.12.13.20)"
+// 0.7.19：UA 与 version_code 必须和红果当前版本一致（7.4.3.32 / 74332），
+// 否则播放接口返回「200 + 0 字节」（2026-11-11 实测）。
+const hongguoPlaybackUADefault = "com.phoenix.read/74332 (Linux; U; Android 15; zh_CN; 25053RT47C; Build/BP2A.250605.031.A3; Cronet/TTNetVersion:04657795 2026-01-23 QuicVersion:c67e9834 2025-09-08)"
 
 var (
 	upstreamConfigMu     sync.RWMutex
@@ -149,7 +165,7 @@ func parseUpstreamConfig(content []byte) (upstreamConfig, error) {
 		modes := make([]string, 0, len(values))
 		for _, item := range values {
 			mode, _ := item.(string)
-			if mode == hongguoPlaybackModeSignedRegistered || mode == hongguoPlaybackModeUnsignedRegistered || mode == hongguoPlaybackModeSignedSynthetic {
+			if mode == hongguoPlaybackModeSignedRegistered || mode == hongguoPlaybackModeUnsignedRegistered || mode == hongguoPlaybackModeSignedSynthetic || mode == hongguoPlaybackModeAppRequest {
 				modes = append(modes, mode)
 			}
 		}
@@ -157,6 +173,23 @@ func parseUpstreamConfig(content []byte) (upstreamConfig, error) {
 			return upstreamConfig{}, errors.New("播放组合列表全部非法")
 		}
 		config.PlaybackModes = modes
+	}
+	if rows, ok := raw["hongguoDeviceProfile"].(map[string]any); ok && len(rows) > 0 {
+		profile := make(map[string]string, len(rows))
+		for key, item := range rows {
+			if !hongguoDeviceProfileKeys[key] {
+				continue
+			}
+			value, _ := item.(string)
+			value = strings.TrimSpace(value)
+			if value == "" || len(value) > 64 || strings.ContainsAny(value, "\r\n") {
+				continue
+			}
+			profile[key] = value
+		}
+		if len(profile) > 0 {
+			config.DeviceProfile = profile
+		}
 	}
 	return config, nil
 }

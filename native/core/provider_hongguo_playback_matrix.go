@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,7 +44,57 @@ const (
 	hongguoPlaybackModeSignedRegistered   = "signed-registered"
 	hongguoPlaybackModeUnsignedRegistered = "unsigned-registered"
 	hongguoPlaybackModeSignedSynthetic    = "signed-synthetic"
+	// 0.7.19：与目录 / 详情完全同构的请求构造（hongguoAppRequest）。
+	hongguoPlaybackModeAppRequest = "app-request"
+	// 0.7.19：video_tab GET + 真实 551 Argus/Ladon 签名（当前主路径）。
+	hongguoPlaybackModeVideoTab = "video-tab"
 )
+
+// hongguoPlaybackLastAppRequestErr 记录详情同构路径的失败原因（仅用于报错拼接）。
+var hongguoPlaybackLastAppRequestErr error
+
+// hongguoPlaybackModelViaAppRequest 用与详情接口完全一致的构造取 video_model。
+//
+// 这是 0.7.19 的主路径：目录与详情都靠 `hongguoAppRequest` 工作正常，
+// 播放接口此前一直用另手拼的 query + 另一套 UA/头，是唯一的结构性差异。
+func (downloader *Downloader) hongguoPlaybackModelViaAppRequest(ctx context.Context, videoID string) (map[string]any, error) {
+	payload := map[string]any{
+		"biz_param": map[string]any{
+			"detail_page_version":       0,
+			"device_level":              3,
+			"disable_digg_stat":         false,
+			"need_all_video_definition": true,
+			"need_mp4_align":            false,
+			"use_os_player":             false,
+			"use_server_dns":            false,
+			"video_platform":            1024,
+		},
+		"mixed_video_id_map": map[string]any{"1004": []string{videoID}},
+	}
+	extra := url.Values{
+		"host_abi":                {"arm64-v8a"},
+		"dragon_device_type":      {"phone"},
+		"pv_player":               {"73532"},
+		"compliance_status":       {"0"},
+		"need_personal_recommend": {"1"},
+		"player_so_load":          {"1"},
+		"is_android_pad_screen":   {"0"},
+	}
+	result, err := downloader.hongguoAppRequest(ctx, http.MethodPost, "/novel/player/multi_video_model/v1/", extra, payload)
+	if err != nil {
+		return nil, err
+	}
+	entry := nestedMap(nestedMap(result, "data"), videoID)
+	model := hongguoVideoModel(entry["video_model"])
+	if len(model) == 0 {
+		// 有些返回把 video_model 放在 data 之下但不以 videoID 为键。
+		if fallback := hongguoVideoModel(nestedMap(result, "data")["video_model"]); len(fallback) > 0 {
+			return fallback, nil
+		}
+		return nil, errors.New("红果 App 接口未返回该集播放信息")
+	}
+	return model, nil
+}
 
 var (
 	hongguoPlaybackPrefMu     sync.Mutex
@@ -149,6 +200,24 @@ func (downloader *Downloader) hongguoPlaybackCandidateOrder() []hongguoPlaybackC
 
 // hongguoPlaybackModel 按组合矩阵取某集的 video_model（含换身份、换域、退避）。
 func (downloader *Downloader) hongguoPlaybackModel(ctx context.Context, videoID string) (map[string]any, error) {
+	// 0.7.19 主路径：video_tab GET + 真实 551 Argus/Ladon 签名 + 每次 fresh 身份。
+	//
+	// 这是 2026-11-11 起播放全空的真正修复：旧 sign6 的 x-argus / x-ladon
+	// 只是 le32/be32(khronos) 的时间戳占位，不是上游校验的真实签名；
+	// 上游收紧后对这种占位一律回「HTTP 200 + 0 字节」，换端点/参数/身份/出口都无效。
+	if model, err := downloader.hongguoVideoTabModel(ctx, videoID); err == nil {
+		downloader.saveHongguoPlaybackPref(hongguoPlaybackPreference{Mode: hongguoPlaybackModeVideoTab})
+		return model, nil
+	} else {
+		hongguoPlaybackLastAppRequestErr = err
+	}
+	// 次选：与详情同构的 POST 构造（保留作为兜底）
+	if model, err := downloader.hongguoPlaybackModelViaAppRequest(ctx, videoID); err == nil {
+		downloader.saveHongguoPlaybackPref(hongguoPlaybackPreference{Mode: hongguoPlaybackModeAppRequest})
+		return model, nil
+	} else {
+		hongguoPlaybackLastAppRequestErr = err
+	}
 	candidates := downloader.hongguoPlaybackCandidateOrder()
 	var lastErr error
 	attempted := 0
@@ -308,6 +377,16 @@ func hongguoPlaybackQuery(deviceID, installID string, khronos, ticket int64) str
 		{"device_id", deviceID}, {"iid", installID},
 		{"ts", strconv.FormatInt(khronos, 10)},
 		{"_rticket", strconv.FormatInt(ticket, 10)},
+	}
+	// 0.7.19：支持用远程配置覆盖设备画像字段，
+	// 便于「设备画像与注册身份不一致 → 播放空响应」时不必发版即可校准。
+	overrides := upstreamConfigSnapshot().DeviceProfile
+	for key, value := range overrides {
+		for index := range fields {
+			if fields[index][0] == key {
+				fields[index][1] = value
+			}
+		}
 	}
 	parts := make([]string, 0, len(fields))
 	for _, field := range fields {

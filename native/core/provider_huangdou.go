@@ -113,7 +113,7 @@ func (d *Downloader) resolveHuangdouPlayback(ctx context.Context, client *huangd
 	}
 	if media == "" {
 		media = fmt.Sprintf("%s/api/drama/hls/%s/%d/play.m3u8?line=free", client.host, url.PathEscape(sourceID), seq)
-		playlist, err := d.fetchProviderText(ctx, media, client.host+"/home")
+		playlist, err := huangdouGetText(ctx, d, media, client.host+"/home")
 		if err != nil || !strings.HasPrefix(strings.TrimSpace(playlist), "#EXTM3U") {
 			return providerMedia{}, errors.New("黄豆未提供有效的播放地址，备用播放列表也不可用")
 		}
@@ -251,24 +251,18 @@ func (c *huangdouAPIClient) callOnce(ctx context.Context, path string, data map[
 	req.Header.Set("deviceType", huangdouDeviceType)
 	req.Header.Set("requestId", rid)
 	req.Header.Set("sessionId", c.sessionID)
-	resp, err := c.d.doPreparedCatalogRequest(req, 20*time.Second, func(prepared *http.Request) {
+	resp, body, err := func() (*http.Response, []byte, error) {
 		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 		signRaw := "Dart|" + c.sessionID + "|" + rid + "|" + timestamp + "|" + path
 		signSum := sha256.Sum256([]byte(signRaw))
-		prepared.Header.Set("time", timestamp)
-		prepared.Header.Set("sign", hex.EncodeToString(signSum[:])+"-"+timestamp)
-	})
+		req.Header.Set("time", timestamp)
+		req.Header.Set("sign", hex.EncodeToString(signSum[:])+"-"+timestamp)
+		return huangdouDo(c, req, 20*time.Second)
+	}()
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	blob, err := io.ReadAll(io.LimitReader(resp.Body, providerMaxBodyBytes+1))
-	if err != nil {
-		return err
-	}
-	if len(blob) > providerMaxBodyBytes {
-		return fmt.Errorf("huangdou response exceeds %d bytes", providerMaxBodyBytes)
-	}
+	blob := body
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("huangdou HTTP %d: %s", resp.StatusCode, truncate(string(blob), 200))
 	}

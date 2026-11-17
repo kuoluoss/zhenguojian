@@ -300,8 +300,13 @@ class _VerticalFeedScreenState extends State<VerticalFeedScreen>
   }
 
   /// 取流失败/为空时尝试借用其他已授权源；返回 true 表示已触发重载。
+  ///
+  /// 注意：用户**明确只选了一个源组**时不借用。
+  /// 否则「选中蓝果 → 蓝果取不到 → 借来红果」，表现为「选蓝果却播红果」，
+  /// 是明确的错误行为（不能让兜底掩盖用户的选择）。
   bool _tryBorrowSources() {
     if (_borrowAllSources || widget.singleDrama != null) return false;
+    if (_userPickedSingleGroup) return false;
     final current = _sources.map((source) => source.id).toSet();
     final all = widget.store.sources
         .where((source) => widget.store.allowsSource(source.id))
@@ -311,6 +316,16 @@ class _VerticalFeedScreenState extends State<VerticalFeedScreen>
     _error = null;
     unawaited(_load(force: true));
     return true;
+  }
+
+  /// 用户是否明确只选了一个源组（非「全部站源」多选）。
+  ///
+  /// 判定：存在首选源、不是多选模式、且没有手工开启多源。
+  bool get _userPickedSingleGroup {
+    final multi = widget.store.multiSources;
+    if (multi.length > 1) return false;
+    final picked = widget.sources;
+    return picked.isNotEmpty;
   }
 
   String _signatureOf(List<SourceSite> sources) =>

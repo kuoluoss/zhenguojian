@@ -35,6 +35,8 @@ func (d *Downloader) providerBaseURL(source string) string {
 		configured, fallback = d.cfg.HongguoURL, hongguoBaseURL
 	case sourceHuangju:
 		configured, fallback = d.cfg.HuangjuURL, huangjuBaseURL
+	case sourceLanguo:
+		fallback = languoBaseURL
 	default:
 		fallback = "https://d2pypzndaqisk.cloudfront.net"
 	}
@@ -58,6 +60,8 @@ func providerSourceForURL(raw string) string {
 		return sourceHongguo
 	case host == "huangju.net" || host == "www.huangju.net" || host == "api.huangju.net":
 		return sourceHuangju
+	case host == "languo.ai" || host == "www.languo.ai" || host == "languo2.com":
+		return sourceLanguo
 	default:
 		return ""
 	}
@@ -103,6 +107,12 @@ func (d *Downloader) resolveProviderMedia(ctx context.Context, task Task) (provi
 	}
 	if chapter.Source == sourceHuangju {
 		return d.resolveHuangjuMedia(ctx, task)
+	}
+	if chapter.Source == sourceLanguo {
+		if _, sourceID, valid := splitProviderDramaID(task.DramaID); valid {
+			return d.resolveLanguoMedia(ctx, sourceID, chapter.EpisodeString(task.Index))
+		}
+		return d.resolveLanguoMedia(ctx, "", chapter.EpisodeString(task.Index))
 	}
 	if strings.HasPrefix(chapter.VideoURL, "hongguo-cenc://") {
 		return d.resolveHongguoMedia(ctx, task)
@@ -165,7 +175,15 @@ func (d *Downloader) resolveProviderMedia(ctx context.Context, task Task) (provi
 	}
 	parsed, _ := url.Parse(media.URL)
 	if strings.HasSuffix(strings.ToLower(parsed.Path), ".m3u8") {
-		playlist, finalURL, err := d.fetchMediaPlaylist(ctx, media.URL, media.Referer)
+		var playlist, finalURL string
+		var err error
+		if chapter.Source == sourceHuangdou {
+			// 黄豆证书过期（xqjurgek.top，2026-11-06），走宽松客户端取播放列表。
+			playlist, err = huangdouGetText(ctx, d, media.URL, media.Referer)
+			finalURL = media.URL
+		} else {
+			playlist, finalURL, err = d.fetchMediaPlaylist(ctx, media.URL, media.Referer)
+		}
 		if err != nil {
 			return providerMedia{}, fmt.Errorf("获取播放列表失败: %w", err)
 		}

@@ -15,7 +15,7 @@ root = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser()
     add_variant_argument(parser)
-    variant = BuildVariant(parser.parse_args().all_sources)
+    variant = BuildVariant(parser.parse_args().edition)
     if platform.system() != 'Windows':
         raise SystemExit('此检查需要 Windows。')
     version = re.search(r'^version:\s*(\S+)', (root / 'pubspec.yaml').read_text(encoding='utf-8'), re.MULTILINE).group(1)

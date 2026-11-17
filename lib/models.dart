@@ -23,6 +23,7 @@ class SourceSite {
   };
 
   static const hongguo = SourceSite('hongguo', '红果', '短剧 · 漫剧 · AI 剧');
+  static const languo = SourceSite('languo', '蓝果', '男同短剧 · GV');
   static const knownValues = [
     hongguo,
     SourceSite('huangdou', '黄豆', '精选短剧'),
@@ -30,8 +31,13 @@ class SourceSite {
     SourceSite('huangguo-video', '黄果剧场', '视频剧集'),
     SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
     SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),
+    languo,
   ];
-  static const values = allSourcesEnabled ? knownValues : [hongguo];
+  static const values = allSourcesEnabled
+      ? knownValues
+      : languoOnlyEnabled
+      ? [languo]
+      : [hongguo];
   static bool isAvailable(String id) => values.any((site) => site.id == id);
   static SourceSite byId(String id) =>
       knownValues.firstWhere((site) => site.id == id, orElse: () => hongguo);

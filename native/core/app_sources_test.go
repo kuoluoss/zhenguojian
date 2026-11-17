@@ -90,7 +90,7 @@ func TestSourceUpdatesPreservePagesOtherSourcesAndMetadata(t *testing.T) {
 }
 
 func TestSourceJobsDeduplicateCancelAndRecoverAfterRestart(t *testing.T) {
-	if buildAllSources != "true" {
+	if !editionAllSources() {
 		t.Skip("full edition source lifecycle")
 	}
 	var calls atomic.Int32

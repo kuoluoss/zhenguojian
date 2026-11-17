@@ -48,6 +48,7 @@ var (
 	hongguoDeviceMu      sync.Mutex
 	hongguoDeviceID      string
 	hongguoDeviceInstall string
+	hongguoDeviceCDID    string
 	hongguoDeviceFailed  time.Time
 )
 
@@ -61,22 +62,30 @@ func (downloader *Downloader) hongguoPlaybackIdentity(ctx context.Context) (stri
 	if !hongguoDeviceFailed.IsZero() && time.Since(hongguoDeviceFailed) < hongguoDeviceRetryCooldown {
 		return "", "", errors.New("红果播放身份暂不可用，请稍后重试")
 	}
-	deviceID, installID, err := downloader.registerHongguoPlaybackDevice(ctx)
+	deviceID, installID, cdid, err := downloader.registerHongguoPlaybackDevice(ctx)
 	if err != nil {
 		hongguoDeviceFailed = time.Now()
 		return "", "", err
 	}
-	hongguoDeviceID, hongguoDeviceInstall, hongguoDeviceFailed = deviceID, installID, time.Time{}
+	hongguoDeviceID, hongguoDeviceInstall, hongguoDeviceCDID, hongguoDeviceFailed = deviceID, installID, cdid, time.Time{}
 	return deviceID, installID, nil
 }
 
+// hongguoPlaybackCDID 返回与当前匿名身份配套的 cdid（注册时写入 body 的那个）。
+func hongguoPlaybackCDID() string {
+	hongguoDeviceMu.Lock()
+	defer hongguoDeviceMu.Unlock()
+	return hongguoDeviceCDID
+}
+
 // registerHongguoPlaybackDevice 调 device_register 注册匿名设备（ttEncrypt 加密请求体）。
-func (downloader *Downloader) registerHongguoPlaybackDevice(ctx context.Context) (string, string, error) {
+func (downloader *Downloader) registerHongguoPlaybackDevice(ctx context.Context) (string, string, string, error) {
 	now := time.Now().UnixMilli()
-	body := hongguoDeviceRegisterBody(now)
+	cdid := hongguoRandomUUID()
+	body := hongguoDeviceRegisterBody(now, cdid)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, hongguoDeviceRegisterURL, bytes.NewReader(body))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	request.Header.Set("User-Agent", hongguoDeviceRegisterUA)
 	request.Header.Set("Accept", "application/json")
@@ -93,28 +102,28 @@ func (downloader *Downloader) registerHongguoPlaybackDevice(ctx context.Context)
 
 	response, err := downloader.doPreparedCatalogRequest(request, 8*time.Second, nil)
 	if err != nil {
-		return "", "", fmt.Errorf("红果播放身份注册失败: %w", err)
+		return "", "", "", fmt.Errorf("红果播放身份注册失败: %w", err)
 	}
 	defer response.Body.Close()
 	content, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
-		return "", "", fmt.Errorf("红果播放身份注册失败: %w", err)
+		return "", "", "", fmt.Errorf("红果播放身份注册失败: %w", err)
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("红果播放身份注册失败: HTTP %d", response.StatusCode)
+		return "", "", "", fmt.Errorf("红果播放身份注册失败: HTTP %d", response.StatusCode)
 	}
 	var parsed map[string]any
 	decoder := json.NewDecoder(bytes.NewReader(content))
 	decoder.UseNumber()
 	if err := decoder.Decode(&parsed); err != nil || parsed == nil {
-		return "", "", errors.New("红果播放身份注册返回格式异常")
+		return "", "", "", errors.New("红果播放身份注册返回格式异常")
 	}
 	deviceID := hongguoRegisterID(parsed, "device_id")
 	installID := hongguoRegisterID(parsed, "install_id")
 	if deviceID == "" || installID == "" {
-		return "", "", errors.New("红果播放身份注册未返回有效设备号")
+		return "", "", "", errors.New("红果播放身份注册未返回有效设备号")
 	}
-	return deviceID, installID, nil
+	return deviceID, installID, cdid, nil
 }
 
 // hongguoRegisterID 优先取 `*_str`，退回数字形式；只接受正整数形式的 ID。
@@ -138,7 +147,7 @@ func hongguoRegisterID(payload map[string]any, name string) string {
 //
 // 结构：magic(6B) + random(32B) + AES-128-CBC( sha512(gzip) + gzip )
 // 密钥：sha512( sha512(random) + KDF_SALT )，前 16 字节作 key、后 16 字节作 IV。
-func hongguoDeviceRegisterBody(now int64) []byte {
+func hongguoDeviceRegisterBody(now int64, cdid string) []byte {
 	header := map[string]any{
 		"display_name": "红果免费短剧", "update_version_code": 73932, "manifest_version_code": 73932,
 		"app_version_minor": "7.3.9.32", "aid": 8662, "channel": "update_64", "package": "com.phoenix.read",
@@ -148,7 +157,7 @@ func hongguoDeviceRegisterBody(now int64) []byte {
 		"cpu_abi": "arm64-v8a", "release_build": "b5e187f", "density_dpi": 520, "display_density": "mdpi",
 		"resolution": "1280x2772", "language": "zh", "timezone": 8, "access": "wifi", "not_request_sender": 0,
 		"carrier": "CHINA MOBILE", "mcc_mnc": "46000", "rom": "eng.root.20231116.160340",
-		"rom_version": "W528JS release-keys", "cdid": hongguoRandomUUID(),
+		"rom_version": "W528JS release-keys", "cdid": cdid,
 		"sig_hash": "56a962410c494bbaf0b58dba20cae56f", "openudid": hongguoRandomHex(8),
 		"clientudid": hongguoRandomUUID(), "ipv6_list": []any{}, "region": "CN", "tz_name": "Asia/Shanghai",
 		"tz_offset": 28800, "sim_region": "cn", "sim_serial_number": []any{}, "oaid_may_support": false,

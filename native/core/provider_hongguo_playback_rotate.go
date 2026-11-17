@@ -43,7 +43,7 @@ func hongguoPlaybackLastHost() string {
 // resetHongguoPlaybackIdentity 丢弃缓存的匿名身份，下次请求会重新注册。
 func resetHongguoPlaybackIdentity() {
 	hongguoDeviceMu.Lock()
-	hongguoDeviceID, hongguoDeviceInstall, hongguoDeviceFailed = "", "", time.Time{}
+	hongguoDeviceID, hongguoDeviceInstall, hongguoDeviceCDID, hongguoDeviceFailed = "", "", "", time.Time{}
 	hongguoDeviceMu.Unlock()
 }
 

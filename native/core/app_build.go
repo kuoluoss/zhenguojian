@@ -2,13 +2,30 @@ package core
 
 import "errors"
 
-var buildAllSources = "false"
+// buildEdition 由链接参数注入，取值：
+//   - "hongguo"：红果鉴，只含红果；
+//   - "all"：真果鉴，含全部站源（含蓝果）；
+//   - "languo"：蓝果鉴，只含蓝果。
+var buildEdition = "hongguo"
+
+// EnableAllSources 供本地探针启用全部站源（App 构建时由链接参数注入）。
+func EnableAllSources() { buildEdition = "all" }
+
+// editionAllSources 当前版本是否为全源版本。
+func editionAllSources() bool { return buildEdition == "all" }
 
 var errNativeBuildSource = errors.New("当前版本不包含此站源")
 
 func nativeSourceAvailable(source string) bool {
 	source = canonicalProviderSource(source)
-	return source == sourceHongguo || buildAllSources == "true" && isHuangguoProviderSource(source)
+	switch buildEdition {
+	case "all":
+		return source == sourceHongguo || isHuangguoProviderSource(source)
+	case "languo":
+		return source == sourceLanguo
+	default:
+		return source == sourceHongguo
+	}
 }
 
 func nativeDramaAvailable(drama nativeDrama) bool {

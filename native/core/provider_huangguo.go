@@ -86,7 +86,7 @@ func splitProviderDramaID(id string) (source, sourceID string, ok bool) {
 
 func isHuangguoProviderSource(source string) bool {
 	switch canonicalProviderSource(source) {
-	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceCloudFront:
+	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceCloudFront, sourceLanguo:
 		return true
 	default:
 		return false
@@ -105,6 +105,8 @@ func canonicalProviderSource(source string) string {
 		return sourceHongguo
 	case "huangju", "huangju.net", "api.huangju.net":
 		return sourceHuangju
+	case "languo", "languo.ai", "languo2.com", "蓝果":
+		return sourceLanguo
 	case "cloudfront":
 		return sourceCloudFront
 	default:

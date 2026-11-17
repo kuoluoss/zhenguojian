@@ -44,11 +44,12 @@ class _SavedLibraryState extends State<SavedLibrary> {
 
   Future<void> _clearHistory() async {
     final epoch = widget.store.profileEpoch;
+    final active = widget.store.activeSourceIds;
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清空观看记录？'),
-        content: const Text('这会删除当前用户的观看进度，追剧状态和手动已看标记会保留。'),
+        content: const Text('这会删除当前站源的观看进度，其它站源的记录会保留；追剧状态和手动已看标记也会保留。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -62,7 +63,10 @@ class _SavedLibraryState extends State<SavedLibrary> {
       ),
     );
     if (accepted == true && mounted && epoch == widget.store.profileEpoch) {
-      await saveUserChange(context, widget.store.clearHistory);
+      await saveUserChange(
+        context,
+        () => widget.store.clearHistory(sources: active),
+      );
     }
   }
 
@@ -107,8 +111,14 @@ class _SavedLibraryState extends State<SavedLibrary> {
     animation: widget.store,
     builder: (context, _) {
       final history = widget.store.history;
+      // 最近观看按当前站源过滤（GitHub 议题 #13）：切到红果只看红果记录，
+      // 切到其它源只看其它源记录，互不串台。
+      final activeSources = widget.store.activeSourceIds;
       final all = widget.history
-          ? history.map((entry) => entry.drama).toList()
+          ? history
+                .where((entry) => activeSources.contains(entry.drama.source))
+                .map((entry) => entry.drama)
+                .toList()
           : widget.store.favorites;
       final items = all.where((drama) {
         if (!matchesDramaQuery(drama, _search.text)) return false;
@@ -219,10 +229,14 @@ class _SavedLibraryState extends State<SavedLibrary> {
       final empty = StatusPanel(
         title: all.isEmpty
             ? widget.history
-                  ? '还没有观看记录'
+                  ? '当前站源还没有观看记录'
                   : '还没有追剧'
             : '没有匹配的记录',
-        message: all.isEmpty ? '去发现页，挑一部喜欢的短剧。' : '可以更换搜索词或筛选条件。',
+        message: all.isEmpty
+            ? widget.history
+                  ? '观看记录按站源分开保存，切换站源即可看到其它记录。'
+                  : '去发现页，挑一部喜欢的短剧。'
+            : '可以更换搜索词或筛选条件。',
         icon: widget.history
             ? Icons.history_rounded
             : Icons.bookmark_border_rounded,

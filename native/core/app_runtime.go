@@ -340,7 +340,7 @@ func nativeDispatch(input nativeInput) (any, error) {
 		}
 		loadUpstreamConfig(input.Directory)
 		nativeState.Unlock()
-		return map[string]any{"version": "0.2.16", "standalone": true, "allSources": buildAllSources == "true"}, nil
+		return map[string]any{"version": "0.2.16", "standalone": true, "edition": buildEdition, "allSources": editionAllSources()}, nil
 	}
 	engine := nativeState.engine
 	nativeState.Unlock()
@@ -604,6 +604,8 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		result.HasMore = len(items) >= 20
 	case sourceCloudFront:
 		items, result.HasMore, err = d.fetchLegacyCatalogCategoryPage(ctx, page, category)
+	case sourceLanguo:
+		items, result.HasMore, err = d.fetchLanguoCatalogPage(ctx, page, category)
 	}
 	if err != nil && len(items) == 0 {
 		return result, err
@@ -644,6 +646,8 @@ func (engine *nativeEngine) nativeDetail(ctx context.Context, drama nativeDrama)
 		raw, chapters, err = engine.downloader.fetchLegacyDetail(ctx, sourceID)
 	case sourceHuangju:
 		raw, chapters, err = engine.downloader.fetchHuangjuDetail(ctx, sourceID)
+	case sourceLanguo:
+		raw, chapters, err = engine.downloader.fetchLanguoDetail(ctx, sourceID)
 	default:
 		title, chapters, err = engine.downloader.GetHuangguoChapters(ctx, source, sourceID)
 	}

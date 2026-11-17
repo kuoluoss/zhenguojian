@@ -15,7 +15,7 @@ parser.add_argument('--abi', action='append', choices=['arm64-v8a', 'armeabi-v7a
 parser.add_argument('--cn-mirrors', action='store_true', help='使用 Flutter 中国镜像和阿里云 Maven 镜像')
 add_variant_argument(parser)
 options = parser.parse_args()
-variant = BuildVariant(options.all_sources)
+variant = BuildVariant(options.edition)
 environment = os.environ.copy()
 if platform.system() == 'Darwin':
     environment['LANG'] = 'en_US.UTF-8'

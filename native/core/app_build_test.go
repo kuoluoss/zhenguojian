@@ -13,7 +13,7 @@ import (
 
 func TestNativeBuildAuthorization(t *testing.T) {
 	for _, source := range []string{sourceHongguo, sourceHuangdou, sourceHuangguoVideo, sourceHuangguoAI, sourceCloudFront, "unknown"} {
-		allowed := source == sourceHongguo || buildAllSources == "true" && source != "unknown"
+		allowed := source == sourceHongguo || editionAllSources() && source != "unknown"
 		for _, action := range []string{"catalog", "cached", "sourceStatus", "sourceJob", "cancelSourceJob", "detail", "cover", "resolve", "enqueueDownloads", "localPlayback"} {
 			input := nativeInput{Action: action, Source: source, Drama: nativeDrama{ID: source + ":123", Source: source}}
 			err := nativeAuthorizeInput(input)
@@ -61,7 +61,7 @@ func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *tes
 	t.Cleanup(reopened.close)
 	jobs, err := reopened.snapshot()
 	expected := 1
-	if buildAllSources == "true" {
+	if editionAllSources() {
 		expected = 5
 	}
 	if err != nil || len(jobs) != expected {
@@ -80,7 +80,7 @@ func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *tes
 		t.Fatal(err)
 	}
 	workers := 1
-	if buildAllSources == "true" {
+	if editionAllSources() {
 		workers = 2
 	}
 	seen := map[string]bool{}
@@ -92,10 +92,10 @@ func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *tes
 			t.Fatal("allowed download did not start")
 		}
 	}
-	if !seen[sourceHongguo] || buildAllSources == "true" && !seen[sourceHuangdou] {
+	if !seen[sourceHongguo] || editionAllSources() && !seen[sourceHuangdou] {
 		t.Fatalf("wrong sources scheduled: %v", seen)
 	}
-	if buildAllSources != "true" {
+	if !editionAllSources() {
 		reopened.mu.Lock()
 		active := len(reopened.active)
 		reopened.mu.Unlock()
@@ -115,7 +115,7 @@ func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *tes
 		t.Fatal(err)
 	}
 	reopened.close()
-	if buildAllSources != "true" {
+	if !editionAllSources() {
 		for _, original := range records[1:] {
 			if !reflect.DeepEqual(reopened.jobs[original.ID], original) {
 				t.Fatal("hidden download changed during bulk operations")

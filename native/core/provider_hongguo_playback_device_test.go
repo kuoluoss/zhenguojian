@@ -7,7 +7,7 @@ import (
 )
 
 func TestHongguoDeviceRegisterBodyStructure(t *testing.T) {
-	body := hongguoDeviceRegisterBody(1700000000000)
+	body := hongguoDeviceRegisterBody(1700000000000, "1a2b3c4d-5e6f-4788-9a0b-1c2d3e4f5a6b")
 	magic := []byte{0x74, 0x63, 0x05, 0x10, 0x00, 0x00}
 	if !bytes.HasPrefix(body, magic) {
 		t.Fatalf("注册请求体缺少 ttEncrypt magic 前缀，实际前 6 字节: %x", body[:min(6, len(body))])

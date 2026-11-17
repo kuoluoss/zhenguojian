@@ -227,6 +227,17 @@ class LocalStore extends ChangeNotifier {
         : sources.firstOrNull?.id ?? '';
   }
 
+  /// 当前生效的站源集合：多选时取多选结果，否则取当前单一站源。
+  ///
+  /// 用于把「最近观看」等记录按当前站源过滤（GitHub 议题 #13）。
+  Set<String> get activeSourceIds {
+    if (locked) return const {};
+    final multi = multiSources;
+    if (multi.isNotEmpty) return multi.toSet();
+    final single = source;
+    return single.isEmpty ? const {} : {single};
+  }
+
   DownloadPreferences get downloadPreferences {
     if (locked) return const DownloadPreferences();
     try {
@@ -568,15 +579,34 @@ class LocalStore extends ChangeNotifier {
     });
   }
 
-  Future<void> clearHistory() {
+  /// 清空观看记录；传入 `sources` 时只清空这些站源的记录，其余原样保留。
+  Future<void> clearHistory({Set<String>? sources}) {
     final epoch = _epoch;
     return _queue(() async {
       if (locked || epoch != _epoch) return;
-      await _commit(
-        {},
-        remove: [_key('history')],
-        clearSyncProgress: {..._history.keys, ...lanDocument.records.keys},
-      );
+      if (sources == null) {
+        await _commit(
+          {},
+          remove: [_key('history')],
+          clearSyncProgress: {..._history.keys, ...lanDocument.records.keys},
+        );
+      } else {
+        final removed = _history.values
+            .where((entry) => sources.contains(entry.drama.source))
+            .map((entry) => entry.drama.id)
+            .toSet();
+        if (removed.isEmpty) return;
+        final kept = Map.of(_history)
+          ..removeWhere((key, _) => removed.contains(key));
+        await _commit(
+          {
+            _key('history'): jsonEncode(
+              kept.values.map((entry) => entry.toJson()).toList(),
+            ),
+          },
+          clearSyncProgress: removed,
+        );
+      }
       _loadLibrary();
       _notify();
     });

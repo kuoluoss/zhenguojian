@@ -49,9 +49,27 @@ func (downloader *Downloader) hongguoMediaFromModel(ctx context.Context, model m
 		return media, nil
 	} else if media, ok := downloader.hongguoFallbackMedia(ctx, model); ok {
 		return media, nil
+	} else if media, ok := downloader.hongguoFplayMedia(ctx, model, hongguoModelVideoID(model)); ok {
+		// 0.7.19：`fallback_api` 指向的哈希地址有时不带可用直链，
+		// 再用同一 hash 走官方 fplay 通道取一次（参数与 App 一致）。
+		return media, nil
 	} else {
 		return providerMedia{}, err
 	}
+}
+
+// hongguoModelVideoID 从 video_model 里取当前集的视频 ID。
+func hongguoModelVideoID(model map[string]any) string {
+	if value := mapString(model, "video_id", "vid", "videoId"); hongguoNumericID.MatchString(value) {
+		return value
+	}
+	for _, row := range anyList(model["video_list"]) {
+		variant, _ := row.(map[string]any)
+		if value := mapString(variant, "video_id", "vid", "videoId"); hongguoNumericID.MatchString(value) {
+			return value
+		}
+	}
+	return ""
 }
 
 // hongguoSignedPlaybackModel 走六头签名路径取 video_model（0.7.16 及以前的方式，保留兜底）。
