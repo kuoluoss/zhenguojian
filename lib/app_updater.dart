@@ -448,9 +448,10 @@ class AppUpdater {
       );
       if (response.statusCode != 200) return null;
       final body = await response.transform(utf8.decoder).join();
-      // 页面里含形如 zhenguojian-0.5.0+46-arm64-v8a.apk 的文件名。
+      // 页面里含形如 <slug>-0.9.0+81-arm64-v8a.apk 的文件名；按当前版本 slug 匹配，
+      // 避免三版本发布后把用户更新成另一个版本（议题 #14）。
       final match = RegExp(
-        r'zhenguojian-[0-9][0-9.+]*-arm64-v8a\.apk',
+        RegExp.escape(appSlug) + r'-[0-9][0-9.+]*-arm64-v8a\.apk',
       ).firstMatch(body);
       return match?.group(0);
     } catch (_) {
@@ -524,6 +525,8 @@ class AppUpdater {
           final name = asset['name']?.toString() ?? '';
           if (!name.toLowerCase().endsWith('.apk')) continue;
           if (!name.contains('arm64')) continue;
+          // 只认当前版本自己的安装包，否则三版本发布后会更新成别的版本（议题 #14）。
+          if (!name.startsWith('$appSlug-')) continue;
           apkName = name;
           apkUrl = asset['browser_download_url']?.toString();
           break;

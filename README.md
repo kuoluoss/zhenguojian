@@ -2,7 +2,7 @@
 
 多站源短剧浏览与在线播放应用，Android 手机版。基于开源项目 [Topkill/guoapp3](https://github.com/Topkill/guoapp3) 二次开发与改版。
 
-当前版本：**0.8.0+80** ｜ 平台：Android 8.0+（arm64-v8a） ｜ [下载最新版](https://github.com/kuoluoss/zhenguojian/releases/latest)
+当前版本：**0.9.0+81** ｜ 平台：Android 8.0+（arm64-v8a） ｜ [下载最新版](https://github.com/kuoluoss/zhenguojian/releases/latest)
 
 ---
 
@@ -14,21 +14,19 @@
 - **数据存储**：剧库、追剧、观看历史、下载记录都保存在本机。
 - **账号**：没有云端账号，不需要登录；只有本机用户与权限管理。
 
-## 二、本次更新（0.8.0）
+## 二、本次更新（0.9.0）
 
-- **新增：三种版本**：红果鉴（仅红果）、真果鉴（全部站源）、蓝果鉴（仅蓝果）。
-- **新增：蓝果站源**（境外站，需代理 / VPN）。
-- **新增：最近观看按站源分开**：切源只看当前源的记录，清空也只清当前源。
-- **修复：黄豆站源证书过期**导致整源不可用。
-- **修复：选单个站源时不再播放其他站源的内容**。
-- **修复：红果播放请求参数与设备身份对齐官方要求**。
+> ⚠️ **本次换了应用包名，旧版不能覆盖升级：请先用旧版「设置与备份 → 导出备份」保存数据，装好新版后再「恢复备份」。不备份就卸载，追剧/观看记录/下载会丢失。**
+
+- **重要：三个版本各自独立包名**：红果鉴 `com.hongguojian.app`、真果鉴 `com.zhenguojian.app`、蓝果鉴 `com.languojian.app`；解决与其他同源应用的包名冲突，三个版本可以同时安装。
+- **修复：应用内更新选错安装包**：以前真果鉴 / 蓝果鉴点更新会下到红果鉴，现在只下载与当前版本对应的包。
 - **已知问题**：红果播放仍可能失败（取决于官方是否放行）；蓝果需代理 / VPN。
 
-上一版 0.7.18：红果播放签名修正与组合自动切换。更早版本见 [Releases](https://github.com/kuoluoss/zhenguojian/releases)。
+上一版 0.8.0：三种版本、蓝果源、最近观看按源区分。更早版本见 [Releases](https://github.com/kuoluoss/zhenguojian/releases)。
 
 ## 三、快速开始
 
-1. 从 [Releases](https://github.com/kuoluoss/zhenguojian/releases/latest) 下载对应版本：`hongguojian-<版本>-arm64-v8a.apk`（仅红果）/ `zhenguojian-<版本>-arm64-v8a.apk`（全部站源）/ `languojian-<版本>-arm64-v8a.apk`（仅蓝果）。三个包包名相同，不能同时安装。
+1. 从 [Releases](https://github.com/kuoluoss/zhenguojian/releases/latest) 下载对应版本：`hongguojian-<版本>-arm64-v8a.apk`（仅红果）/ `zhenguojian-<版本>-arm64-v8a.apk`（全部站源）/ `languojian-<版本>-arm64-v8a.apk`（仅蓝果）。三个版本包名各自独立，**可以同时安装**；从旧版（`com.duanju.duanju_app`）升级需先导出备份，装好新版后恢复。
 2. 手机上安装（需允许「安装未知来源应用」）。
 3. 打开即用；之后有新版本时，App 内会提示更新。
 
@@ -177,6 +175,7 @@ python3 scripts/build_android.py --abi arm64-v8a
 
 | 版本 | 日期 | 主要变化 |
 | --- | --- | --- |
+| 0.9.0 | 2026-11-18 | 三版改独立包名（可共存、解决包名冲突）；修复应用内更新选错安装包 |
 | 0.8.0 | 2026-11-17 | 三种版本（红果鉴/真果鉴/蓝果鉴）；蓝果源；最近观看按源区分；黄豆证书修复；红果播放参数修正 |
 | 0.7.18 | 2026-11-03 | 红果播放签名修正 + 组合自动切换 + 播放地址缓存；参数远程可配；首页多源兜底 |
 | 0.7.17 | 2026-10-31 | 修复红果播放取流（改注册匿名身份 + 无签名，保留签名兜底） |

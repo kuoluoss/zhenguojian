@@ -19,6 +19,12 @@ val appLabel = when (edition) {
     "languo" -> "蓝果鉴"
     else -> "红果鉴"
 }
+// 0.9.0：三版改为各自独立的包名，避免与其它同源应用（如「绿果酱」）冲突，并允许三版共存。
+val appId = when (edition) {
+    "all" -> "com.zhenguojian.app"
+    "languo" -> "com.languojian.app"
+    else -> "com.hongguojian.app"
+}
 val allSources = edition == "all"
 
 val releaseKey = rootProject.file("key.properties")
@@ -38,7 +44,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.duanju.duanju_app"
+        applicationId = appId
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
