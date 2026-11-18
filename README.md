@@ -20,7 +20,7 @@
 
 - **重要：三个版本各自独立包名**：红果鉴 `com.hongguojian.app`、真果鉴 `com.zhenguojian.app`、蓝果鉴 `com.languojian.app`；解决与其他同源应用的包名冲突，三个版本可以同时安装。
 - **修复：应用内更新选错安装包**：以前真果鉴 / 蓝果鉴点更新会下到红果鉴，现在只下载与当前版本对应的包。
-- **已知问题**：红果播放仍可能失败（取决于官方是否放行）；蓝果需代理 / VPN。
+- **已知问题**：红果播放仍可能失败（取决于官方是否放行）；蓝果需开 VPN / 代理访问，开启后播放正常。
 
 上一版 0.8.0：三种版本、蓝果源、最近观看按源区分。更早版本见 [Releases](https://github.com/kuoluoss/zhenguojian/releases)。
 
@@ -87,9 +87,11 @@
 | 黄果剧场 | 原「黄果视频」，域名 `huangguoai.fit`；直连较慢，走代理更快 |
 | 黄果 AI | 多镜像域名；稳定性受站点限流影响 |
 | 黄果旧版 | 直连正常；代理出口 IP 可能触发限流 |
+| 蓝果 | `languo.ai`；标准 HLS，无需签名；**国内需开 VPN / 代理才能访问，开启后播放正常** |
 
 - 站源在「站源管理」里勾选；勾选多个时首页混合随机。
 - **剧类筛选只在只选红果时可用** —— 只有红果提供这套分类，其它源没有对应维度。
+- **三个版本的站源范围不同**：红果鉴仅红果；真果鉴全部 7 个站源（含蓝果）；蓝果鉴仅蓝果。
 
 ## 七、常见问题
 
@@ -131,15 +133,18 @@ A：不需要。没有云端账号；本机用户管理只用于区分不同使�
 环境：Flutter `3.47.4`、Dart `3.12+`、Go `1.24.1+`、Python `3.10+`；Android 需 JDK 17、SDK 36、NDK `28.2.13676358`。
 
 ```sh
-# 全站源版（真果鉴）
-python3 scripts/build_android.py --abi arm64-v8a --all-sources
-# 仅红果版（红果鉴）
-python3 scripts/build_android.py --abi arm64-v8a
+# 红果鉴（仅红果）
+python3 scripts/build_android.py --abi arm64-v8a --edition hongguo
+# 真果鉴（全部站源，含蓝果）
+python3 scripts/build_android.py --abi arm64-v8a --edition all
+# 蓝果鉴（仅蓝果）
+python3 scripts/build_android.py --abi arm64-v8a --edition languo
 ```
 
 - **必须在纯英文路径下构建**（中文路径会导致工具链失败）。
 - 构建时不要设 HTTP 代理；访问 GitHub 时才需要代理。
 - 产物在 `dist/android/`，`SHA256SUMS.txt` 为校验清单。
+- 三个版本包名各自独立（见「快速开始」），**可以同时安装**；旧参数 `--all-sources` 已废弃，请改用 `--edition`。
 
 源码结构：
 
